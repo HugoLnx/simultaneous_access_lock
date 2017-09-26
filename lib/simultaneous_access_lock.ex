@@ -1,33 +1,42 @@
 defmodule SimultaneousAccessLock do
+  alias SimultaneousAccessLock.LoadedLuaScripts
+
   @ttl Application.get_env(:simultaneous_access_lock, :ttl)
 
   def get_lock(user_id, max_sessions) do
     now = :os.system_time(:milli_seconds)
-    {:ok, sessions_amount} = redis(["ZCOUNT", "lock:#{user_id}", now-@ttl, "+inf"])
-    if sessions_amount < max_sessions do
-      session = create_session()
-      redis([
-        ["ZADD", "lock:#{user_id}", "NX", now, session],
-        ["PEXPIRE", "lock:#{user_id}", @ttl],
-      ])
-      {:ok, session}
-    else
-      {:error, :no_slots}
+    session_id = create_session()
+    LoadedLuaScripts.exec(:get_lock, %{
+      keys: %{user_lock: "lock:#{user_id}"},
+      argv: %{
+        max_locks: max_sessions,
+        now: now,
+        ttl: @ttl,
+        expired_time_limit: now - @ttl,
+        new_session_id: session_id,
+      },
+    })
+    |> case do
+      {:ok, "OK"} -> {:ok, session_id}
+      _ -> {:error, :no_slots}
     end
   end
 
   def renew_lock(user_id, session_id) do
     now = :os.system_time(:milli_seconds)
-    {:ok, created_at} = redis(["ZSCORE", "lock:#{user_id}", session_id])
-    created_at = String.to_integer(created_at || "0")
-    if created_at > now - @ttl do
-      redis([
-        ["ZADD", "lock:#{user_id}", "XX", now, session_id],
-        ["PEXPIRE", "lock:#{user_id}", @ttl],
-      ])
-      {:ok, session_id}
-    else
-      {:error, :not_found}
+    redis(["EVAL", @renew_lock_script, 1, "lock:#{user_id}", now, @ttl, now-@ttl, session_id])
+    LoadedLuaScripts.exec(:renew_lock, %{
+      keys: %{user_lock: "lock:#{user_id}"},
+      argv: %{
+        now: now,
+        ttl: @ttl,
+        expired_time_limit: now - @ttl,
+        session_id: session_id,
+      },
+    })
+    |> case do
+      {:ok, "OK"} -> {:ok, session_id}
+      _ -> {:error, :not_found}
     end
   end
 

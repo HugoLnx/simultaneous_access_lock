@@ -9,6 +9,13 @@ defmodule SimultaneousAccessLock.Application do
     # Define workers and child supervisors to be supervised
     children = [
       worker(Redix, [[], [name: :redix]]),
+      worker(SimultaneousAccessLock.LoadedLuaScripts, [
+        [templates: [
+            get_lock: "lib/lua/get_lock.lua",
+            renew_lock: "lib/lua/renew_lock.lua",
+        ]],
+        [name: :lua_scripts],
+      ]),
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

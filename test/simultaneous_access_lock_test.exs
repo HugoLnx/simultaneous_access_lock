@@ -22,7 +22,7 @@ defmodule SimultaneousAccessLockTest do
       assert {:error, :no_slots} = SimultaneousAccessLock.get_lock("hugo", 2)
     end
 
-    test "can not get new locks after it expires" do
+    test "can get new locks after one expires" do
       SimultaneousAccessLock.get_lock("hugo", 2)
       Process.sleep(25)
       SimultaneousAccessLock.get_lock("hugo", 2)
