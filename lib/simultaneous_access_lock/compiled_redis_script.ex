@@ -1,4 +1,6 @@
 defmodule SimultaneousAccessLock.CompiledLuaScript do
+  require Logger
+
   defstruct script: nil, argv_names: nil, keys_names: nil
 
   def compile(script_template) do
@@ -11,6 +13,8 @@ defmodule SimultaneousAccessLock.CompiledLuaScript do
   end
 
   def eval_args(%__MODULE__{argv_names: argv_names, keys_names: keys_names}, %{argv: argv, keys: keys}) do
+    validate_args("argv", argv_names, argv)
+    validate_args("keys", keys_names, keys)
     [length(keys_names)] ++ args_list_for(keys_names, keys) ++ args_list_for(argv_names, argv)
   end
 
@@ -35,5 +39,22 @@ defmodule SimultaneousAccessLock.CompiledLuaScript do
       ~r{#{table_name}\[["']#{name}["']\]}
       |> Regex.replace(script_template, "#{table_name}[#{i+1}]")
     end)
+  end
+
+  defp validate_args(args_name, names, args) do
+    names = names
+    |> Enum.map(&String.to_atom/1)
+    |> MapSet.new
+
+    args = args
+    |> Map.keys
+    |> MapSet.new
+
+    missing_args = MapSet.difference(names, args)
+    unless Enum.empty?(missing_args) do
+      msg = "RedisScriptCallError: Expected #{args_name} to include #{Enum.join(missing_args, ", ")}"
+      Logger.error(msg)
+      raise ArgumentError, msg
+    end
   end
 end

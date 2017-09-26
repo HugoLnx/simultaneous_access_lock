@@ -24,7 +24,6 @@ defmodule SimultaneousAccessLock do
 
   def renew_lock(user_id, session_id) do
     now = :os.system_time(:milli_seconds)
-    redis(["EVAL", @renew_lock_script, 1, "lock:#{user_id}", now, @ttl, now-@ttl, session_id])
     LoadedLuaScripts.exec(:renew_lock, %{
       keys: %{user_lock: "lock:#{user_id}"},
       argv: %{
@@ -38,14 +37,6 @@ defmodule SimultaneousAccessLock do
       {:ok, "OK"} -> {:ok, session_id}
       _ -> {:error, :not_found}
     end
-  end
-
-  defp redis([commands | _] = all_commands) when is_list(commands) do
-    Redix.pipeline(:redix, all_commands)
-  end
-
-  defp redis(command) do
-    Redix.command(:redix, command)
   end
 
   defp create_session, do: UUID.uuid1()
