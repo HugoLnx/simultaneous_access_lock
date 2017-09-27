@@ -7,6 +7,7 @@ defmodule SimultaneousAccessLock.LoadedLuaScripts do
   end
 
   def init(opts) do
+    Redix.command(:redix, ["SCRIPT", "FLUSH"])
     templates = opts[:templates]
     scripts = templates
     |> Enum.reduce(%{}, fn {name, template_path}, loaded_scripts ->
