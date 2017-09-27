@@ -29,17 +29,17 @@ defmodule SimultaneousAccessLockTest do
     :ok
   end
 
-  describe "getting new lock with no toleration time" do
-    test "get new lock when there are free slots" do
+  describe "#get_lock\t" do
+    test "when there are free slots, it get a new lock" do
       assert {:ok, _} = get_simple_lock()
     end
 
-    test "can not get a new lock when all slots are being used" do
+    test "when all slots are being used, it does not get a new lock" do
       get_simple_lock()
       assert {:error, :no_slots} = get_simple_lock()
     end
 
-    test "can get new locks after one expires" do
+    test "after one expires, it get a new one in its place" do
       get_simple_lock(%{max_locks: 2})
       Process.sleep(25)
       get_simple_lock(%{max_locks: 2})
@@ -48,28 +48,28 @@ defmodule SimultaneousAccessLockTest do
       assert {:error, :no_slots} = get_simple_lock(%{max_locks: 2})
     end
 
-    test "the user key disapears if all locks expires" do
+    test "when all locks expires, the user key disapears" do
       get_simple_lock()
       Process.sleep(55)
       assert {:ok, @redis_false} = Redix.command(:redix, ["EXISTS", "lock:hugo"])
     end
   end
 
-  describe "getting new lock with toleration time" do
-    test "get new lock when there are free or extra slots available" do
+  describe "#get_lock [with toleration period]\t" do
+    test "when there are free or extra slots available, it get a new lock " do
       assert {:ok, _} = get_tolerance_lock()
       assert {:ok, _} = get_tolerance_lock()
       assert {:ok, _} = get_tolerance_lock()
     end
 
-    test "can not get a new lock when all free and extra slots are being used" do
+    test "when all free and extra slots are being used, it does not get a new lock" do
       get_tolerance_lock()
       get_tolerance_lock()
       get_tolerance_lock()
       assert {:error, :no_slots} = get_tolerance_lock()
     end
 
-    test "can get new locks after one expires" do
+    test "after one expires, it get a new one in its place" do
       get_tolerance_lock()
       Process.sleep(25)
       get_tolerance_lock()
@@ -79,7 +79,7 @@ defmodule SimultaneousAccessLockTest do
       assert {:error, :no_slots} = get_tolerance_lock()
     end
 
-    test "can not get new locks after tolerance time have been exceeded" do
+    test "after tolerance time have been exceeded, it does not get a new lock" do
       {:ok, lock1_id} = get_tolerance_lock()
       {:ok, lock2_id} = get_tolerance_lock()
       Process.sleep(35)
@@ -89,7 +89,7 @@ defmodule SimultaneousAccessLockTest do
       assert {:error, :no_slots} = get_tolerance_lock()
     end
 
-    test "reset tolerance time after extra locks expires" do
+    test "after extra locks expires, it reset tolerance time" do
       {:ok, lock1_id} = get_tolerance_lock()
       {:ok, lock2_id} = get_tolerance_lock()
       Process.sleep(35)
@@ -98,31 +98,31 @@ defmodule SimultaneousAccessLockTest do
       assert {:ok, _} = get_tolerance_lock()
     end
 
-    test "the user key disapears if all locks expires" do
+    test "if all locks expires, the user key disapears " do
       get_tolerance_lock()
       Process.sleep(55)
       assert {:ok, @redis_false} = Redix.command(:redix, ["EXISTS", "lock:hugo"])
     end
   end
 
-  describe "renewing locks without tolerance" do
-    test "can renew a lock that already exist" do
+  describe "#renew_lock\t" do
+    test "when the lock already exist, it renew the lock" do
       {:ok, lock_id} = get_lock("hugo", 2)
       assert {:ok, lock_id} = renew_lock("hugo", lock_id)
     end
 
-    test "can not renew a lock that does not exist" do
+    test "when the lock does not exist, it does not renew anything" do
       get_lock("hugo", 2)
       assert {:error, :not_found} = renew_lock("hugo", "non-existent-lock")
     end
 
-    test "can not renew a expired lock" do
+    test "when the lock has already expired, it does not renew the lock" do
       {:ok, lock_id} = get_lock("hugo", 2)
       Process.sleep(55)
       assert {:error, :not_found} = renew_lock("hugo", lock_id)
     end
 
-    test "a renewed lock expires later" do
+    test "when the lock is renewed, it update the lock expiration time" do
       {:ok, lock1_id} = get_lock("hugo", 2)
       {:ok, lock2_id} = get_lock("hugo", 2)
       Process.sleep(30)
@@ -133,24 +133,24 @@ defmodule SimultaneousAccessLockTest do
     end
   end
 
-  describe "renewing locks with tolerance" do
-    test "can renew a lock that already exist" do
+  describe "#renew_lock [with tolerance period]\t" do
+    test "when the lock already exist, it renew the lock" do
       {:ok, lock_id} = get_tolerance_lock()
       assert {:ok, lock_id} = renew_tolerance_lock(lock_id)
     end
 
-    test "can not renew a lock that does not exist" do
+    test "when the lock does not exist, it does not renew anything" do
       get_tolerance_lock()
       assert {:error, :not_found} = renew_tolerance_lock("non-existent-lock")
     end
 
-    test "can not renew a expired lock" do
+    test "when the lock has already expired, it does not renew the lock" do
       {:ok, lock_id} = get_tolerance_lock()
       Process.sleep(55)
       assert {:error, :not_found} = renew_tolerance_lock(lock_id)
     end
 
-    test "a renewed lock expires later" do
+    test "when the lock is renewed, it update the lock expiration time" do
       {:ok, lock1_id} = get_tolerance_lock()
       {:ok, lock2_id} = get_tolerance_lock()
       Process.sleep(30)
@@ -160,7 +160,7 @@ defmodule SimultaneousAccessLockTest do
       assert {:error, :not_found} = renew_tolerance_lock(lock2_id)
     end
 
-    test "expires old locks when tolerance time is over" do
+    test "when tolerance time is over, it expires the elder locks" do
       {:ok, lock1_id} = get_tolerance_lock()
       {:ok, lock2_id} = get_tolerance_lock()
       Process.sleep(35)
