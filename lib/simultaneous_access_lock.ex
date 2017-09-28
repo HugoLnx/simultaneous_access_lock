@@ -14,8 +14,10 @@ defmodule SimultaneousAccessLock do
     |> Map.get(:tolerance, %{})
     |> Map.get(:max_locks, max_locks)
 
+    lock_id = opts
+    |> Map.get(:lock_id, create_lock())
+
     now = :os.system_time(:milli_seconds)
-    lock_id = create_lock()
     LoadedLuaScripts.exec(:get_lock, %{
       keys: %{
         user_lock: "lock:#{user_id}",

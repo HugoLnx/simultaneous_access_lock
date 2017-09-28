@@ -53,6 +53,10 @@ defmodule SimultaneousAccessLockTest do
       Process.sleep(55)
       assert {:ok, @redis_false} = Redix.command(:redix, ["EXISTS", "lock:hugo"])
     end
+
+    test "when pass the lock_id, the lock_id is not generated" do
+      assert {:ok, "hugolockid"} = get_lock("hugo", 2, %{lock_id: "hugolockid"})
+    end
   end
 
   describe "#get_lock [with toleration period]\t" do
