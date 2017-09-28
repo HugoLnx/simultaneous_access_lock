@@ -2,12 +2,18 @@ defmodule SimultaneousAccessLock do
   alias SimultaneousAccessLock.LoadedLuaScripts
 
   @ttl Application.get_env(:simultaneous_access_lock, :ttl)
+  @five_years :timer.hours(5*366*24)
+  @locks_max_configuration 1_000_000
 
-  def get_lock(user_id, max_locks) do
-    get_lock(user_id, max_locks, tolerance: %{milliseconds: 1000, max_locks: max_locks})
-  end
+  def get_lock(user_id, max_locks, opts \\ %{}) do
+    tolerance_time = opts
+    |> Map.get(:tolerance, %{})
+    |> Map.get(:milliseconds, @five_years)
 
-  def get_lock(user_id, max_locks, tolerance: %{milliseconds: tolerance_time, max_locks: tolerance_max_locks}) do
+    tolerance_max_locks = opts
+    |> Map.get(:tolerance, %{})
+    |> Map.get(:max_locks, max_locks)
+
     now = :os.system_time(:milli_seconds)
     lock_id = create_lock()
     LoadedLuaScripts.exec(:get_lock, %{
@@ -31,11 +37,17 @@ defmodule SimultaneousAccessLock do
     end
   end
 
-  def renew_lock(user_id, lock_id) do
-    renew_lock(user_id, lock_id, max_locks: 99, tolerance: %{milliseconds: 100, max_locks: 99})
-  end
+  def renew_lock(user_id, lock_id, opts \\ %{}) do
+    max_locks = opts
+    |> Map.get(:max_locks, @locks_max_configuration)
 
-  def renew_lock(user_id, lock_id, max_locks: max_locks, tolerance: %{milliseconds: tolerance_time}) do
+    tolerance_time = opts
+    |> Map.get(:tolerance, %{})
+    |> Map.get(:milliseconds, @five_years)
+
+    tolerance_max_locks = opts
+    |> Map.get(:tolerance, %{})
+    |> Map.get(:max_locks, max_locks)
     now = :os.system_time(:milli_seconds)
     LoadedLuaScripts.exec(:renew_lock, %{
       keys: %{

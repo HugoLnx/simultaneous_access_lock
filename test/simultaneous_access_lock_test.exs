@@ -17,11 +17,11 @@ defmodule SimultaneousAccessLockTest do
   end
 
   def get_tolerance_lock do
-    get_lock(@user, @max_locks, tolerance: %{milliseconds: @tolerance_time_limit, max_locks: @tolerance_max_locks})
+    get_lock(@user, @max_locks, %{tolerance: %{milliseconds: @tolerance_time_limit, max_locks: @tolerance_max_locks}})
   end
 
   def renew_tolerance_lock(lock_id) do
-    renew_lock(@user, lock_id, max_locks: @max_locks, tolerance: %{milliseconds: @tolerance_time_limit, max_locks: @tolerance_max_locks})
+    renew_lock(@user, lock_id, %{max_locks: @max_locks, tolerance: %{milliseconds: @tolerance_time_limit, max_locks: @tolerance_max_locks}})
   end
 
   setup do
